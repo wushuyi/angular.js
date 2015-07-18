@@ -6,12 +6,12 @@ describe('ngAnimate integration tests', function() {
 
   var html, ss;
   beforeEach(module(function() {
-    return function($rootElement, $document, $window, $animate) {
+    return function($rootElement, $document, $$body, $window, $animate) {
       $animate.enabled(true);
 
       ss = createMockStyleSheet($document, $window);
 
-      var body = jqLite($document[0].body);
+      var body = $$body;
       html = function(element) {
         body.append($rootElement);
         $rootElement.append(element);
@@ -105,6 +105,33 @@ describe('ngAnimate integration tests', function() {
         expect(animationCompleted).toBe(true);
       });
     });
+
+    it('should not throw an error if the element is orphaned before the CSS animation starts',
+      inject(function($rootScope, $rootElement, $animate, $$rAF) {
+
+      ss.addRule('.animate-me', 'transition:2s linear all;');
+
+      var parent = jqLite('<div></div>');
+      html(parent);
+
+      var element = jqLite('<div class="animate-me">DOING</div>');
+      parent.append(element);
+
+      $animate.addClass(parent, 'on');
+      $animate.addClass(element, 'on');
+      $rootScope.$digest();
+
+      // this will run the first class-based animation
+      $$rAF.flush();
+
+      element.remove();
+
+      expect(function() {
+        $$rAF.flush();
+      }).not.toThrow();
+
+      dealoc(element);
+    }));
   });
 
   describe('JS animations', function() {

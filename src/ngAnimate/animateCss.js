@@ -186,7 +186,7 @@
  * to the element during the animation. Multiple events can be provided when spaces are used as a separator. (Note that this will not perform any DOM operation.)
  * * `easing` - The CSS easing value that will be applied to the transition or keyframe animation (or both).
  * * `transition` - The raw CSS transition style that will be used (e.g. `1s linear all`).
- * * `keyframe` - The raw CSS keyframe animation style that will be used (e.g. `1s my_animation linear`).
+ * * `keyframeStyle` - The raw CSS keyframe animation style that will be used (e.g. `1s my_animation linear`).
  * * `from` - The starting CSS styles (a key/value object) that will be applied at the start of the animation.
  * * `to` - The ending CSS styles (a key/value object) that will be applied across the animation via a CSS transition.
  * * `addClass` - A space separated list of CSS classes that will be added to the element and spread across the animation.
@@ -497,6 +497,10 @@ var $AnimateCssProvider = ['$animateProvider', function($animateProvider) {
 
     function init(element, options) {
       var node = getDomNode(element);
+      if (!node || !node.parentNode) {
+        return closeAndReturnNoopAnimator();
+      }
+
       options = prepareAnimationOptions(options);
 
       var temporaryStyles = [];
@@ -556,10 +560,14 @@ var $AnimateCssProvider = ['$animateProvider', function($animateProvider) {
       var fullClassName = classes + ' ' + setupClasses;
       var activeClasses = pendClasses(setupClasses, '-active');
       var hasToStyles = styles.to && Object.keys(styles.to).length > 0;
+      var containsKeyframeAnimation = (options.keyframeStyle || '').length > 0;
 
-      // there is no way we can trigger an animation since no styles and
-      // no classes are being applied which would then trigger a transition
-      if (!hasToStyles && !setupClasses) {
+      // there is no way we can trigger an animation if no styles and
+      // no classes are being applied which would then trigger a transition,
+      // unless there a is raw keyframe value that is applied to the element.
+      if (!containsKeyframeAnimation
+           && !hasToStyles
+           && !setupClasses) {
         return closeAndReturnNoopAnimator();
       }
 
@@ -782,6 +790,10 @@ var $AnimateCssProvider = ['$animateProvider', function($animateProvider) {
 
       function start() {
         if (animationClosed) return;
+        if (!node.parentNode) {
+          close();
+          return;
+        }
 
         var startTime, events = [];
 
@@ -912,7 +924,7 @@ var $AnimateCssProvider = ['$animateProvider', function($animateProvider) {
 
           startTime = Date.now();
           element.on(events.join(' '), onAnimationProgress);
-          $timeout(onAnimationExpired, maxDelayTime + CLOSING_TIME_BUFFER * maxDurationTime);
+          $timeout(onAnimationExpired, maxDelayTime + CLOSING_TIME_BUFFER * maxDurationTime, false);
 
           applyAnimationToStyles(element, options);
         }
